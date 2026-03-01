@@ -45,6 +45,7 @@ public class PdfGenerationService {
         document.setMargins(100, 40, 50, 40);
 
         PdfAcroForm form = PdfAcroForm.getAcroForm(pdfDoc, true);
+        form.setGenerateAppearance(true);   // CRITICAL for Chrome rendering
 
         document.add(new Paragraph(
                 "List of information required and supporting documents for KYC journey")
@@ -149,6 +150,8 @@ public class PdfGenerationService {
                     text.setBackgroundColor(ColorConstants.WHITE);
 
                     form.addField(text);
+                    text.regenerateField();   // IMPORTANT
+
                     break;
 
                 case SELECTION:
@@ -168,15 +171,17 @@ public class PdfGenerationService {
                     combo.setBackgroundColor(ColorConstants.WHITE);
 
                     form.addField(combo);
+                    combo.regenerateField();   // IMPORTANT
+
                     break;
 
-                case CHECKBOX:
+                case CHECKBOX:  // Yes / No Radio Pair
 
                     float size = 16f;
                     float gap = 70f;
 
                     PdfButtonFormField group =
-                            PdfButtonFormField.createRadioGroup(pdfDoc, fieldName, "");
+                            PdfButtonFormField.createRadioGroup(pdfDoc, fieldName, "Off");
 
                     Rectangle yesRect =
                             new Rectangle(rect.getX(), rect.getY(), size, size);
@@ -184,13 +189,23 @@ public class PdfGenerationService {
                     PdfFormField yes =
                             PdfFormField.createRadioButton(pdfDoc, yesRect, group, "Yes");
 
+                    yes.setBorderColor(ColorConstants.BLACK);
+                    yes.setBorderWidth(2);
+                    yes.setBackgroundColor(ColorConstants.WHITE);
+
                     Rectangle noRect =
                             new Rectangle(rect.getX() + gap, rect.getY(), size, size);
 
                     PdfFormField no =
                             PdfFormField.createRadioButton(pdfDoc, noRect, group, "No");
 
+                    no.setBorderColor(ColorConstants.BLACK);
+                    no.setBorderWidth(2);
+                    no.setBackgroundColor(ColorConstants.WHITE);
+
                     form.addField(group);
+                    group.regenerateField();   // CRITICAL
+
                     break;
             }
         }
