@@ -45,7 +45,7 @@ public class PdfGenerationService {
         document.setMargins(100, 40, 50, 40);
 
         PdfAcroForm form = PdfAcroForm.getAcroForm(pdfDoc, true);
-        form.setGenerateAppearance(true);   // CRITICAL for Chrome rendering
+        form.setGenerateAppearance(true);   // Important for Chrome
 
         document.add(new Paragraph(
                 "List of information required and supporting documents for KYC journey")
@@ -150,7 +150,7 @@ public class PdfGenerationService {
                     text.setBackgroundColor(ColorConstants.WHITE);
 
                     form.addField(text);
-                    text.regenerateField();   // IMPORTANT
+                    text.regenerateField();
 
                     break;
 
@@ -171,11 +171,11 @@ public class PdfGenerationService {
                     combo.setBackgroundColor(ColorConstants.WHITE);
 
                     form.addField(combo);
-                    combo.regenerateField();   // IMPORTANT
+                    combo.regenerateField();
 
                     break;
 
-                case CHECKBOX:  // Yes / No Radio Pair
+                case CHECKBOX:   // YES / NO ROUND RADIO
 
                     float size = 16f;
                     float gap = 70f;
@@ -183,28 +183,32 @@ public class PdfGenerationService {
                     PdfButtonFormField group =
                             PdfButtonFormField.createRadioGroup(pdfDoc, fieldName, "Off");
 
+                    // YES
                     Rectangle yesRect =
                             new Rectangle(rect.getX(), rect.getY(), size, size);
 
                     PdfFormField yes =
                             PdfFormField.createRadioButton(pdfDoc, yesRect, group, "Yes");
 
+                    yes.setCheckType(PdfFormField.TYPE_CIRCLE);  // ROUND
                     yes.setBorderColor(ColorConstants.BLACK);
                     yes.setBorderWidth(2);
                     yes.setBackgroundColor(ColorConstants.WHITE);
 
+                    // NO
                     Rectangle noRect =
                             new Rectangle(rect.getX() + gap, rect.getY(), size, size);
 
                     PdfFormField no =
                             PdfFormField.createRadioButton(pdfDoc, noRect, group, "No");
 
+                    no.setCheckType(PdfFormField.TYPE_CIRCLE);   // ROUND
                     no.setBorderColor(ColorConstants.BLACK);
                     no.setBorderWidth(2);
                     no.setBackgroundColor(ColorConstants.WHITE);
 
                     form.addField(group);
-                    group.regenerateField();   // CRITICAL
+                    group.regenerateField();
 
                     break;
             }
