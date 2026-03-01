@@ -1,26 +1,23 @@
 package com.gradle.demo.demo.gpt.service;
 
 import com.gradle.demo.demo.gpt.model.FieldRequest;
-
+import com.gradle.demo.demo.gpt.model.FieldType;
 import com.gradle.demo.demo.gpt.model.SectionRequest;
 import com.gradle.demo.demo.gpt.handler.HeaderEventHandler;
 import com.gradle.demo.demo.gpt.handler.FooterEventHandler;
 
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.*;
-import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.element.*;
-import com.itextpdf.layout.properties.*;
-import com.itextpdf.layout.renderer.CellRenderer;
-import com.itextpdf.layout.renderer.DrawContext;
 import com.itextpdf.kernel.events.PdfDocumentEvent;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.*;
+import com.itextpdf.kernel.pdf.annot.PdfWidgetAnnotation;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.*;
 import com.itextpdf.layout.renderer.CellRenderer;
 import com.itextpdf.layout.renderer.DrawContext;
+import com.itextpdf.layout.borders.Border;
 
 import org.springframework.stereotype.Service;
 
@@ -49,6 +46,7 @@ public class PdfGenerationService {
         document.setMargins(80, 40, 50, 40);
 
         PdfAcroForm form = PdfAcroForm.getAcroForm(pdfDoc, true);
+        form.setNeedAppearances(true);   // Important for Chrome rendering
 
         document.add(new Paragraph(
                 "List of information required and supporting documents for KYC journey")
@@ -77,8 +75,8 @@ public class PdfGenerationService {
                     label += " *";
                 }
 
-                addQuestionRow(document, pdfDoc, form, field,
-                        label, "field_" + fieldCounter.getAndIncrement());
+                addQuestionRow(document, pdfDoc, form,
+                        field, label, "field_" + fieldCounter.getAndIncrement());
             }
         }
 
@@ -104,7 +102,7 @@ public class PdfGenerationService {
 
         Cell right = new Cell()
                 .setBorder(Border.NO_BORDER)
-                .setMinHeight(20);
+                .setMinHeight(22);
 
         right.setNextRenderer(new FieldCellRenderer(right, pdfDoc, form, field, fieldName));
 
@@ -147,14 +145,18 @@ public class PdfGenerationService {
 
                 case TEXT:
                 case DATE:
+
                     PdfTextFormField textField =
                             new TextFormFieldBuilder(pdfDoc, fieldName)
                                     .setWidgetRectangle(rect)
                                     .createText();
+
+                    applyBorder(textField);
                     form.addField(textField);
                     break;
 
                 case SELECTION:
+
                     PdfChoiceFormField combo =
                             new ChoiceFormFieldBuilder(pdfDoc, fieldName)
                                     .setWidgetRectangle(rect)
@@ -163,10 +165,13 @@ public class PdfGenerationService {
                                                     ? field.getOptions().toArray(new String[0])
                                                     : new String[]{"Option 1"})
                                     .createComboBox();
+
+                    applyBorder(combo);
                     form.addField(combo);
                     break;
 
                 case CHECKBOX:
+
                     Rectangle small =
                             new Rectangle(rect.getX(), rect.getY(), 15, 15);
 
@@ -174,9 +179,36 @@ public class PdfGenerationService {
                             new CheckBoxFormFieldBuilder(pdfDoc, fieldName)
                                     .setWidgetRectangle(small)
                                     .createCheckBox();
+
+                    applyBorder(checkbox);
                     form.addField(checkbox);
                     break;
             }
+        }
+
+        private void applyBorder(PdfFormField field) {
+
+            PdfWidgetAnnotation widget = field.getWidgets().get(0);
+
+            // Border Style dictionary
+            PdfDictionary bs = new PdfDictionary();
+            bs.put(PdfName.W, new PdfNumber(1)); // width
+            bs.put(PdfName.S, PdfName.S);        // solid
+            widget.getPdfObject().put(PdfName.BS, bs);
+
+            // Border color (black)
+            PdfArray color = new PdfArray();
+            color.add(new PdfNumber(0));
+            color.add(new PdfNumber(0));
+            color.add(new PdfNumber(0));
+            widget.getPdfObject().put(PdfName.C, color);
+
+            // Legacy border array [0 0 1]
+            PdfArray border = new PdfArray();
+            border.add(new PdfNumber(0));
+            border.add(new PdfNumber(0));
+            border.add(new PdfNumber(1));
+            widget.getPdfObject().put(PdfName.Border, border);
         }
     }
 }
