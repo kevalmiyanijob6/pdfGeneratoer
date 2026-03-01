@@ -8,10 +8,10 @@ import com.gradle.demo.demo.gpt.handler.FooterEventHandler;
 
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.*;
+import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.events.PdfDocumentEvent;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.*;
-import com.itextpdf.kernel.pdf.annot.PdfWidgetAnnotation;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.*;
@@ -35,7 +35,6 @@ public class PdfGenerationService {
     public byte[] generatePdf(List<SectionRequest> sections) throws IOException {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
         PdfWriter writer = new PdfWriter(baos);
         PdfDocument pdfDoc = new PdfDocument(writer);
 
@@ -43,17 +42,16 @@ public class PdfGenerationService {
         pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new FooterEventHandler());
 
         Document document = new Document(pdfDoc);
-        document.setMargins(80, 40, 50, 40);
+        document.setMargins(100, 40, 50, 40);
 
         PdfAcroForm form = PdfAcroForm.getAcroForm(pdfDoc, true);
-        form.setNeedAppearances(true);   // Important for Chrome rendering
 
         document.add(new Paragraph(
                 "List of information required and supporting documents for KYC journey")
                 .setFontSize(11)
                 .setMarginBottom(20));
 
-        AtomicInteger fieldCounter = new AtomicInteger(1);
+        AtomicInteger counter = new AtomicInteger(1);
         int sectionIndex = 1;
 
         for (SectionRequest section : sections) {
@@ -75,8 +73,8 @@ public class PdfGenerationService {
                     label += " *";
                 }
 
-                addQuestionRow(document, pdfDoc, form,
-                        field, label, "field_" + fieldCounter.getAndIncrement());
+                addRow(document, pdfDoc, form,
+                        field, label, "field_" + counter.getAndIncrement());
             }
         }
 
@@ -84,12 +82,12 @@ public class PdfGenerationService {
         return baos.toByteArray();
     }
 
-    private void addQuestionRow(Document document,
-                                PdfDocument pdfDoc,
-                                PdfAcroForm form,
-                                FieldRequest field,
-                                String questionText,
-                                String fieldName) {
+    private void addRow(Document document,
+                        PdfDocument pdfDoc,
+                        PdfAcroForm form,
+                        FieldRequest field,
+                        String questionText,
+                        String fieldName) {
 
         Table table = new Table(UnitValue.createPercentArray(
                 new float[]{QUESTION_WIDTH, FIELD_WIDTH}))
@@ -102,9 +100,10 @@ public class PdfGenerationService {
 
         Cell right = new Cell()
                 .setBorder(Border.NO_BORDER)
-                .setMinHeight(22);
+                .setMinHeight(26);
 
-        right.setNextRenderer(new FieldCellRenderer(right, pdfDoc, form, field, fieldName));
+        right.setNextRenderer(
+                new FieldRenderer(right, pdfDoc, form, field, fieldName));
 
         table.addCell(left);
         table.addCell(right);
@@ -112,23 +111,19 @@ public class PdfGenerationService {
         document.add(table);
     }
 
-    // ===========================
-    // Custom Cell Renderer
-    // ===========================
-
-    private static class FieldCellRenderer extends CellRenderer {
+    private static class FieldRenderer extends CellRenderer {
 
         private final PdfDocument pdfDoc;
         private final PdfAcroForm form;
         private final FieldRequest field;
         private final String fieldName;
 
-        public FieldCellRenderer(Cell modelElement,
-                                 PdfDocument pdfDoc,
-                                 PdfAcroForm form,
-                                 FieldRequest field,
-                                 String fieldName) {
-            super(modelElement);
+        public FieldRenderer(Cell cell,
+                             PdfDocument pdfDoc,
+                             PdfAcroForm form,
+                             FieldRequest field,
+                             String fieldName) {
+            super(cell);
             this.pdfDoc = pdfDoc;
             this.form = form;
             this.field = field;
@@ -146,69 +141,58 @@ public class PdfGenerationService {
                 case TEXT:
                 case DATE:
 
-                    PdfTextFormField textField =
-                            new TextFormFieldBuilder(pdfDoc, fieldName)
-                                    .setWidgetRectangle(rect)
-                                    .createText();
+                    PdfTextFormField text =
+                            PdfTextFormField.createText(pdfDoc, rect, fieldName, "");
 
-                    applyBorder(textField);
-                    form.addField(textField);
+                    text.setBorderColor(ColorConstants.BLACK);
+                    text.setBorderWidth(2);
+                    text.setBackgroundColor(ColorConstants.WHITE);
+
+                    form.addField(text);
                     break;
 
                 case SELECTION:
 
                     PdfChoiceFormField combo =
-                            new ChoiceFormFieldBuilder(pdfDoc, fieldName)
-                                    .setWidgetRectangle(rect)
-                                    .setOptions(
-                                            field.getOptions() != null
-                                                    ? field.getOptions().toArray(new String[0])
-                                                    : new String[]{"Option 1"})
-                                    .createComboBox();
+                            PdfChoiceFormField.createComboBox(
+                                    pdfDoc,
+                                    rect,
+                                    fieldName,
+                                    "",
+                                    field.getOptions() != null
+                                            ? field.getOptions().toArray(new String[0])
+                                            : new String[]{"Option 1"});
 
-                    applyBorder(combo);
+                    combo.setBorderColor(ColorConstants.BLACK);
+                    combo.setBorderWidth(2);
+                    combo.setBackgroundColor(ColorConstants.WHITE);
+
                     form.addField(combo);
                     break;
 
                 case CHECKBOX:
 
-                    Rectangle small =
-                            new Rectangle(rect.getX(), rect.getY(), 15, 15);
+                    float size = 16f;
+                    float gap = 70f;
 
-                    PdfButtonFormField checkbox =
-                            new CheckBoxFormFieldBuilder(pdfDoc, fieldName)
-                                    .setWidgetRectangle(small)
-                                    .createCheckBox();
+                    PdfButtonFormField group =
+                            PdfButtonFormField.createRadioGroup(pdfDoc, fieldName, "");
 
-                    applyBorder(checkbox);
-                    form.addField(checkbox);
+                    Rectangle yesRect =
+                            new Rectangle(rect.getX(), rect.getY(), size, size);
+
+                    PdfFormField yes =
+                            PdfFormField.createRadioButton(pdfDoc, yesRect, group, "Yes");
+
+                    Rectangle noRect =
+                            new Rectangle(rect.getX() + gap, rect.getY(), size, size);
+
+                    PdfFormField no =
+                            PdfFormField.createRadioButton(pdfDoc, noRect, group, "No");
+
+                    form.addField(group);
                     break;
             }
-        }
-
-        private void applyBorder(PdfFormField field) {
-
-            PdfWidgetAnnotation widget = field.getWidgets().get(0);
-
-            // Border Style dictionary
-            PdfDictionary bs = new PdfDictionary();
-            bs.put(PdfName.W, new PdfNumber(1)); // width
-            bs.put(PdfName.S, PdfName.S);        // solid
-            widget.getPdfObject().put(PdfName.BS, bs);
-
-            // Border color (black)
-            PdfArray color = new PdfArray();
-            color.add(new PdfNumber(0));
-            color.add(new PdfNumber(0));
-            color.add(new PdfNumber(0));
-            widget.getPdfObject().put(PdfName.C, color);
-
-            // Legacy border array [0 0 1]
-            PdfArray border = new PdfArray();
-            border.add(new PdfNumber(0));
-            border.add(new PdfNumber(0));
-            border.add(new PdfNumber(1));
-            widget.getPdfObject().put(PdfName.Border, border);
         }
     }
 }
